@@ -39,7 +39,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const startMarkerRef = useRef<L.Marker | null>(null);
   const endMarkerRef = useRef<L.Marker | null>(null);
 
-  // Initialize Map with OpenFreeMap & OpenStreetMap Tile Layers
+  // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -66,32 +66,33 @@ export const MapView: React.FC<MapViewProps> = ({
         map.removeLayer(tileLayerRef.current);
       }
 
-      // OpenFreeMap & OpenStreetMap 100% Free Public Tile Endpoints
-      let tileUrl = 'https://tile.openfreemap.org/liberty/{z}/{x}/{y}.png';
-      let attribution = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+      // Fast, free, crisp dark tiles (CartoDB Dark Matter / OSM)
+      let tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+      let attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
       if (mapLayer === 'street') {
-        tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-        attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+        tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        attribution = '&copy; OpenStreetMap contributors';
       } else if (mapLayer === 'satellite') {
         tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-        attribution = 'Tiles &copy; Esri &mdash; World Imagery';
+        attribution = 'Tiles &copy; Esri';
       }
 
       const newTileLayer = L.tileLayer(tileUrl, {
         attribution,
         maxZoom: 19,
-        className: mapLayer === 'dark' ? 'dark-hud-tiles' : '',
+        subdomains: 'abcd',
       });
 
       newTileLayer.addTo(map);
       tileLayerRef.current = newTileLayer;
 
+      // Invalidate size to guarantee rendering
       const timer = setTimeout(() => {
         if (mapInstanceRef.current) {
           mapInstanceRef.current.invalidateSize();
         }
-      }, 150);
+      }, 100);
 
       return () => {
         clearTimeout(timer);
@@ -177,7 +178,7 @@ export const MapView: React.FC<MapViewProps> = ({
       endMarkerRef.current = endMarker;
 
       const bounds = L.latLngBounds(latLngs);
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(bounds, { padding: [40, 40] });
     } catch (err) {
       console.warn('Polyline render warning:', err);
     }
@@ -248,11 +249,11 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[#0A0D14]">
+    <div className="relative w-full h-full min-h-[300px] overflow-hidden bg-[#0A0D14]">
       {/* Leaflet Map DOM Container */}
       <div
         ref={mapContainerRef}
-        className={`w-full h-full transition-transform duration-500 ease-out ${
+        className={`w-full h-full min-h-[300px] transition-transform duration-500 ease-out ${
           is3dView ? 'scale-105 perspective-3d' : ''
         }`}
         style={
@@ -266,9 +267,9 @@ export const MapView: React.FC<MapViewProps> = ({
       />
 
       {/* ANCHORED NON-OVERLAPPING HUD OVERLAYS */}
-      <div className="absolute inset-0 pointer-events-none p-2.5 sm:p-4 flex flex-col justify-between z-20">
+      <div className="absolute inset-0 pointer-events-none p-2 sm:p-4 flex flex-col justify-between z-20">
         {/* TOP ROW: Left = Next Turn HUD, Right = Map Controls */}
-        <div className="flex items-start justify-between gap-2 sm:gap-4 w-full">
+        <div className="flex items-start justify-between gap-2 w-full">
           <div className="pointer-events-auto">
             <NextTurnHUD
               currentInstruction={currentTurnInstruction}

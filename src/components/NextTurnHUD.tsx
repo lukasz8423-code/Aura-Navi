@@ -5,7 +5,6 @@ import {
   ArrowUp,
   RotateCw,
   MapPin,
-  Navigation
 } from 'lucide-react';
 import { TurnInstruction } from '../types/navigation';
 
@@ -22,7 +21,7 @@ export const NextTurnHUD: React.FC<NextTurnHUDProps> = ({
 }) => {
   if (!currentInstruction) return null;
 
-  const renderTurnIcon = (iconType: string, size = 'w-8 h-8') => {
+  const renderTurnIcon = (iconType: string, size = 'w-5 h-5 sm:w-7 sm:h-7') => {
     switch (iconType) {
       case 'turn-left':
         return <CornerUpLeft className={`${size} text-black`} />;
@@ -47,46 +46,33 @@ export const NextTurnHUD: React.FC<NextTurnHUDProps> = ({
       : `${Math.round(distanceToStepMeters)} m`;
 
   return (
-    <div className="aura-glass rounded-2xl p-3.5 shadow-2xl border border-cyan-500/40 w-72 md:w-80 aura-glow-cyan">
-      <div className="flex items-center gap-3.5">
+    <div className="aura-glass rounded-2xl p-2 sm:p-3 shadow-2xl border border-cyan-500/40 w-56 sm:w-72 lg:w-80 aura-glow-cyan">
+      <div className="flex items-center gap-2.5 sm:gap-3.5">
         {/* Glowing Maneuver Icon */}
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center shrink-0 shadow-lg aura-glow-cyan">
+        <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-500 flex items-center justify-center shrink-0 shadow-lg aura-glow-cyan">
           {renderTurnIcon(currentInstruction.iconType)}
         </div>
 
         {/* Distance & Main Instruction */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-mono font-black text-white tracking-tight tabular-nums">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg sm:text-2xl font-mono font-black text-white tracking-tight tabular-nums">
               {displayDistance}
             </span>
-            <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider">
-              Do manewru
+            <span className="text-[9px] font-mono text-cyan-400 uppercase tracking-wider hidden sm:inline">
+              Manewr
             </span>
           </div>
 
-          <div className="text-sm font-bold text-cyan-300 truncate leading-tight">
+          <div className="text-xs sm:text-sm font-bold text-cyan-300 truncate leading-tight">
             {currentInstruction.streetName}
           </div>
         </div>
       </div>
 
-      <div className="mt-2 pt-2 border-t border-slate-800/80 text-xs text-slate-300 leading-snug line-clamp-1">
+      <div className="mt-1.5 pt-1.5 border-t border-slate-800/80 text-[11px] sm:text-xs text-slate-300 leading-snug truncate">
         {currentInstruction.instructionText}
       </div>
-
-      {/* Next Upcoming Maneuver Preview */}
-      {nextInstruction && (
-        <div className="mt-2 pt-1.5 border-t border-slate-800/50 flex items-center gap-2 text-[11px] text-slate-400">
-          <span className="text-slate-500 font-mono text-[10px]">NASTĘPNIE:</span>
-          <div className="flex items-center gap-1.5 truncate text-slate-300 font-medium">
-            <div className="w-3.5 h-3.5 text-cyan-400">
-              {renderTurnIcon(nextInstruction.iconType, 'w-3.5 h-3.5 text-cyan-400')}
-            </div>
-            <span className="truncate">{nextInstruction.streetName}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

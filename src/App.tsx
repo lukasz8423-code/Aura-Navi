@@ -9,6 +9,7 @@ import {
   LatLng,
 } from './types/navigation';
 import { fetchGeminiRouteInsight } from './services/geminiService';
+import { fetchOSRMRoute, GeocodedPlace } from './services/osrmRoutingService';
 import { TopHeader } from './components/TopHeader';
 import { LeftDock } from './components/LeftDock';
 import { MapView } from './components/MapView';
@@ -19,14 +20,16 @@ export default function App() {
   const [transportMode, setTransportMode] = useState<TransportMode>('car');
   const [mapLayer, setMapLayer] = useState<MapLayerStyle>('dark');
   const [is3dView, setIs3dView] = useState(false);
+  const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   // Gemini AI Route Insights State
   const [insight, setInsight] = useState<RouteInsight | null>(null);
   const [isLoadingInsight, setIsLoadingInsight] = useState(false);
 
-  // Simulation State
+  // Simulation & Live GPS State
   const [simulationState, setSimulationState] = useState<SimulationState>({
     isPlaying: false,
+    isLiveGps: false,
     speedMultiplier: 2,
     currentStepIndex: 0,
     progressPercent: 0,
@@ -38,6 +41,7 @@ export default function App() {
   });
 
   const animFrameRef = useRef<number | null>(null);
+  const watchGpsIdRef = useRef<number | null>(null);
 
   // Fetch AI Route Insight whenever route changes
   useEffect(() => {
@@ -51,13 +55,114 @@ export default function App() {
       }
     });
 
-    // Reset Simulation on Route Change
     resetSimulation(currentRoute);
 
     return () => {
       isMounted = false;
     };
   }, [currentRoute]);
+
+  // Fetch Real OSRM Route when transport mode changes
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchOSRMRoute(currentRoute.originCoords, currentRoute.destinationCoords, transportMode).then((osrmResult) => {
+      if (isMounted && osrmResult) {
+        const updatedRoute: PresetRoute = {
+          ...currentRoute,
+          distanceKm: osrmResult.distanceKm,
+          durationMin: osrmResult.durationMin,
+          path: osrmResult.path,
+          instructions: osrmResult.instructions,
+          transportMode,
+        };
+        setCurrentRoute(updatedRoute);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [transportMode]);
+
+  // Handle Real Custom Destination Search from Nominatim Geocoding
+  const handleSearchCustomDestination = async (place: GeocodedPlace) => {
+    const destCoords: LatLng = {
+      lat: parseFloat(place.lat),
+      lng: parseFloat(place.lon),
+    };
+
+    const destName = place.display_name.split(',')[0] || place.display_name;
+
+    // Fetch real route from current location or preset origin to searched destination
+    const osrmResult = await fetchOSRMRoute(simulationState.currentCoords, destCoords, transportMode);
+
+    if (osrmResult) {
+      const newCustomRoute: PresetRoute = {
+        id: `custom-${Date.now()}`,
+        title: `Trasa do: ${destName}`,
+        subtitle: place.display_name,
+        originName: 'Aktualna Pozycja',
+        destinationName: place.display_name,
+        originCoords: simulationState.currentCoords,
+        destinationCoords: destCoords,
+        distanceKm: osrmResult.distanceKm,
+        durationMin: osrmResult.durationMin,
+        speedLimitKmh: 70,
+        elevationGainM: 15,
+        transportMode,
+        path: osrmResult.path,
+        instructions: osrmResult.instructions,
+        poiHighlights: [{ name: destName, category: 'Cel', coords: destCoords }],
+        isCustomOSRM: true,
+      };
+
+      setCurrentRoute(newCustomRoute);
+    }
+  };
+
+  // Live GPS Tracking Handler
+  const handleToggleLiveGps = () => {
+    if (simulationState.isLiveGps) {
+      // Turn off live GPS
+      if (watchGpsIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchGpsIdRef.current);
+        watchGpsIdRef.current = null;
+      }
+      setSimulationState((prev) => ({ ...prev, isLiveGps: false }));
+    } else {
+      // Turn on live GPS tracking
+      if (!('geolocation' in navigator)) {
+        alert('Geolokalizacja GPS nie jest wspierana na Twoim urządzeniu');
+        return;
+      }
+
+      setSimulationState((prev) => ({ ...prev, isLiveGps: true, isPlaying: false }));
+
+      watchGpsIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const liveCoords: LatLng = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+
+          const liveSpeed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+          const liveHeading = pos.coords.heading || 0;
+
+          setSimulationState((prev) => ({
+            ...prev,
+            currentCoords: liveCoords,
+            currentSpeedKmh: liveSpeed,
+            headingDegrees: Math.round(liveHeading),
+          }));
+        },
+        (err) => {
+          console.warn('GPS error:', err);
+        },
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+      );
+    }
+  };
 
   // Reset Simulation Helper
   const resetSimulation = (route: PresetRoute) => {
@@ -67,6 +172,7 @@ export default function App() {
 
     setSimulationState({
       isPlaying: false,
+      isLiveGps: false,
       speedMultiplier: 2,
       currentStepIndex: 0,
       progressPercent: 0,
@@ -78,7 +184,6 @@ export default function App() {
     });
   };
 
-  // Calculate Heading Angle in degrees (0-360) between two coordinates
   function calculateHeading(from: LatLng, to: LatLng): number {
     const dLng = to.lng - from.lng;
     const dLat = to.lat - from.lat;
@@ -87,9 +192,9 @@ export default function App() {
     return Math.round(angle);
   }
 
-  // Drive Simulation Loop Animation Engine
+  // Drive Simulation Animation Loop
   useEffect(() => {
-    if (!simulationState.isPlaying) {
+    if (!simulationState.isPlaying || simulationState.isLiveGps) {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       return;
     }
@@ -106,12 +211,10 @@ export default function App() {
         const path = currentRoute.path;
         const totalPoints = path.length;
 
-        // Advance progress percent
         const speedFactor = prev.speedMultiplier * 2.5;
         const newProgress = prev.progressPercent + deltaSec * speedFactor;
 
         if (newProgress >= 100) {
-          // Finished route
           return {
             ...prev,
             isPlaying: false,
@@ -124,7 +227,6 @@ export default function App() {
           };
         }
 
-        // Map progress (0-100) to path segment index
         const exactIndex = (newProgress / 100) * (totalPoints - 1);
         const idx1 = Math.floor(exactIndex);
         const idx2 = Math.min(idx1 + 1, totalPoints - 1);
@@ -133,16 +235,13 @@ export default function App() {
         const p1 = path[idx1];
         const p2 = path[idx2];
 
-        // Interpolate LatLng
         const currentCoords: LatLng = {
           lat: p1.lat + (p2.lat - p1.lat) * segmentFraction,
           lng: p1.lng + (p2.lng - p1.lng) * segmentFraction,
         };
 
-        // Heading
         const headingDegrees = calculateHeading(p1, p2);
 
-        // Speed calculation based on transport mode
         const baseSpeed =
           transportMode === 'car' || transportMode === 'ev'
             ? currentRoute.speedLimitKmh * 0.85
@@ -154,7 +253,6 @@ export default function App() {
           baseSpeed + (Math.sin(newProgress) * 6 + prev.speedMultiplier * 4)
         );
 
-        // Distance & Time remaining
         const remainingKm = currentRoute.distanceKm * (1 - newProgress / 100);
         const distanceRemainingMeters = Math.max(0, remainingKm * 1000);
         const timeRemainingSeconds = Math.max(
@@ -162,7 +260,6 @@ export default function App() {
           currentRoute.durationMin * 60 * (1 - newProgress / 100)
         );
 
-        // Step instruction index
         const totalSteps = currentRoute.instructions.length;
         const currentStepIndex = Math.min(
           totalSteps - 1,
@@ -189,16 +286,15 @@ export default function App() {
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [simulationState.isPlaying, simulationState.speedMultiplier, currentRoute, transportMode]);
+  }, [simulationState.isPlaying, simulationState.isLiveGps, simulationState.speedMultiplier, currentRoute, transportMode]);
 
-  // Current & Next Turn Instruction Helpers
   const currentTurnInstruction =
     currentRoute.instructions[simulationState.currentStepIndex] || currentRoute.instructions[0];
   const nextTurnInstruction =
     currentRoute.instructions[simulationState.currentStepIndex + 1] || null;
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#0A0D14] text-slate-100 select-none">
+    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#0A0D14] text-slate-100 select-none relative">
       {/* ZONE 1: TOP HEADER */}
       <TopHeader
         currentRoute={currentRoute}
@@ -209,14 +305,17 @@ export default function App() {
         transportMode={transportMode}
         onSelectTransportMode={(mode) => setTransportMode(mode)}
         onStartSimulation={() => {
-          setSimulationState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
+          setSimulationState((prev) => ({ ...prev, isPlaying: !prev.isPlaying, isLiveGps: false }));
         }}
         isSimulating={simulationState.isPlaying}
+        onUseLiveGps={handleToggleLiveGps}
+        isLiveGps={simulationState.isLiveGps}
+        onSearchCustomDestination={handleSearchCustomDestination}
       />
 
-      {/* ZONE 2: MAIN WORKSPACE CANVAS (Left Dock + Interactive Map Engine) */}
+      {/* ZONE 2: MAIN WORKSPACE CANVAS */}
       <main className="flex-1 w-full h-full flex overflow-hidden relative">
-        {/* ZONE 2A: LEFT DOCK PANEL */}
+        {/* ZONE 2A: LEFT DOCK PANEL (Desktop Sidebar / Mobile Sliding Sheet) */}
         <LeftDock
           currentRoute={currentRoute}
           onSelectRoute={(r) => {
@@ -226,6 +325,8 @@ export default function App() {
           insight={insight}
           isLoadingInsight={isLoadingInsight}
           currentStepIndex={simulationState.currentStepIndex}
+          isOpenMobile={isOpenMobile}
+          onToggleMobileOpen={() => setIsOpenMobile(!isOpenMobile)}
         />
 
         {/* ZONE 2B: CENTRAL MAP CANVAS WITH ANCHORED HUD OVERLAYS */}
@@ -243,11 +344,11 @@ export default function App() {
         </div>
       </main>
 
-      {/* ZONE 3: BOTTOM SIMULATION HUD DOCK */}
+      {/* ZONE 3: BOTTOM CONTROLS DOCK */}
       <BottomDock
         isPlaying={simulationState.isPlaying}
         onTogglePlay={() => {
-          setSimulationState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
+          setSimulationState((prev) => ({ ...prev, isPlaying: !prev.isPlaying, isLiveGps: false }));
         }}
         onReset={() => resetSimulation(currentRoute)}
         speedMultiplier={simulationState.speedMultiplier}
@@ -258,6 +359,8 @@ export default function App() {
         distanceRemainingKm={simulationState.distanceRemainingMeters / 1000}
         timeRemainingMin={Math.ceil(simulationState.timeRemainingSeconds / 60)}
         destinationName={currentRoute.destinationName}
+        isLiveGps={simulationState.isLiveGps}
+        onToggleLiveGps={handleToggleLiveGps}
       />
     </div>
   );

@@ -33,10 +33,12 @@ export interface PresetRoute {
   path: LatLng[];
   instructions: TurnInstruction[];
   poiHighlights: { name: string; category: string; coords: LatLng }[];
+  isCustomOSRM?: boolean;
 }
 
 export interface SimulationState {
   isPlaying: boolean;
+  isLiveGps: boolean; // True when tracking user's real smartphone/browser GPS location
   speedMultiplier: number; // 1x, 2x, 5x, 10x
   currentStepIndex: number;
   progressPercent: number; // 0 to 100

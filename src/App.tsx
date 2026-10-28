@@ -49,6 +49,8 @@ export default function App() {
   const animFrameRef = useRef<number | null>(null);
   const watchGpsIdRef = useRef<number | null>(null);
 
+  const [gpsStatusMessage, setGpsStatusMessage] = useState<string | null>('Szukam Twojej pozycji GPS...');
+
   // Auto-Detect Real User GPS Location on App Startup
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -58,6 +60,9 @@ export default function App() {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
           };
+
+          setGpsStatusMessage('Pozycja GPS ustalona!');
+          setTimeout(() => setGpsStatusMessage(null), 3000);
 
           // Fetch real OSRM route from user's current GPS position to destination
           const osrmResult = await fetchOSRMRoute(
@@ -89,9 +94,13 @@ export default function App() {
         },
         (err) => {
           console.warn('Auto GPS location prompt skipped:', err);
+          setGpsStatusMessage('Domyślna trasa. Kliknij "Mój GPS" aby użyć lokalizacji.');
+          setTimeout(() => setGpsStatusMessage(null), 5000);
         },
-        { enableHighAccuracy: true, timeout: 8000 }
+        { enableHighAccuracy: false, timeout: 6000, maximumAge: 30000 }
       );
+    } else {
+      setGpsStatusMessage(null);
     }
   }, []);
 
@@ -355,7 +364,14 @@ export default function App() {
     currentRoute.instructions[simulationState.currentStepIndex + 1] || null;
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#0A0D14] text-slate-100 select-none relative">
+    <div className="h-screen h-[100dvh] w-screen overflow-hidden flex flex-col bg-[#0A0D14] text-slate-100 select-none relative">
+      {/* GPS STATUS BANNER TOAST */}
+      {gpsStatusMessage && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-full bg-cyan-950/90 border border-cyan-400 text-cyan-300 font-mono text-xs shadow-2xl aura-glow-cyan animate-bounce">
+          {gpsStatusMessage}
+        </div>
+      )}
+
       {/* ZONE 1: TOP HEADER */}
       <TopHeader
         currentRoute={currentRoute}
@@ -372,6 +388,7 @@ export default function App() {
         onUseLiveGps={handleToggleLiveGps}
         isLiveGps={simulationState.isLiveGps}
         onSearchCustomDestination={handleSearchCustomDestination}
+        onOpenMobilePlanner={() => setIsOpenMobile(true)}
       />
 
       {/* ZONE 2: MAIN WORKSPACE CANVAS */}
@@ -402,6 +419,7 @@ export default function App() {
             currentTurnInstruction={currentTurnInstruction}
             nextTurnInstruction={nextTurnInstruction}
             liveSpeedLimit={liveSpeedLimit}
+            onOpenMobilePlanner={() => setIsOpenMobile(true)}
           />
         </div>
       </main>

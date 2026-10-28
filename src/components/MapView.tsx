@@ -17,6 +17,7 @@ interface MapViewProps {
   currentTurnInstruction: TurnInstruction | null;
   nextTurnInstruction: TurnInstruction | null;
   liveSpeedLimit: number | null;
+  onOpenMobilePlanner?: () => void;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -29,6 +30,7 @@ export const MapView: React.FC<MapViewProps> = ({
   currentTurnInstruction,
   nextTurnInstruction,
   liveSpeedLimit,
+  onOpenMobilePlanner,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -66,36 +68,47 @@ export const MapView: React.FC<MapViewProps> = ({
         map.removeLayer(tileLayerRef.current);
       }
 
-      // Fast, free, crisp dark tiles (CartoDB Dark Matter / OSM)
-      let tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-      let attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
+      // 100% Free OpenStreetMap keyless tiles with Dark HUD CSS filter
+      let tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      let attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+      let className = '';
 
-      if (mapLayer === 'street') {
+      if (mapLayer === 'dark') {
         tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-        attribution = '&copy; OpenStreetMap contributors';
+        className = 'osm-hud-tiles';
+      } else if (mapLayer === 'street') {
+        tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        className = '';
       } else if (mapLayer === 'satellite') {
         tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
         attribution = 'Tiles &copy; Esri';
+        className = '';
       }
 
       const newTileLayer = L.tileLayer(tileUrl, {
         attribution,
         maxZoom: 19,
-        subdomains: 'abcd',
+        subdomains: 'abc',
+        className,
       });
 
       newTileLayer.addTo(map);
       tileLayerRef.current = newTileLayer;
 
-      // Invalidate size to guarantee rendering
-      const timer = setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 100);
+      // Invalidate size multiple times to guarantee immediate rendering on mobile
+      map.invalidateSize();
+      const timer1 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 100);
+      const timer2 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 500);
+
+      const handleResize = () => {
+        mapInstanceRef.current?.invalidateSize();
+      };
+      window.addEventListener('resize', handleResize);
 
       return () => {
-        clearTimeout(timer);
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        window.removeEventListener('resize', handleResize);
       };
     } catch (err: any) {
       console.error('Map init error:', err);
@@ -289,9 +302,21 @@ export const MapView: React.FC<MapViewProps> = ({
           />
         </div>
 
-        {/* BOTTOM ROW: Right = Speedometer HUD */}
-        <div className="flex items-end justify-end w-full">
-          <div className="pointer-events-auto">
+        {/* BOTTOM ROW: Left = Mobile Maneuvers Button, Right = Speedometer HUD */}
+        <div className="flex items-end justify-between w-full">
+          {onOpenMobilePlanner && (
+            <div className="pointer-events-auto lg:hidden">
+              <button
+                onClick={onOpenMobilePlanner}
+                className="px-3 py-2 rounded-2xl aura-glass text-cyan-300 font-bold text-xs flex items-center gap-1.5 shadow-xl border border-cyan-500/40 aura-glow-cyan"
+              >
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                <span>Lista Manewrów</span>
+              </button>
+            </div>
+          )}
+
+          <div className="pointer-events-auto ml-auto">
             <SpeedometerHUD
               currentSpeedKmh={simulationState.currentSpeedKmh}
               speedLimitKmh={liveSpeedLimit || currentRoute.speedLimitKmh}

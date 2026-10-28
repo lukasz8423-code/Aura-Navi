@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Navigation, Search, Car, Bike, Footprints, Zap, Radio, Sparkles, MapPin, LocateFixed, Loader2 } from 'lucide-react';
+import { Navigation, Search, Car, Bike, Footprints, Radio, Sparkles, MapPin, LocateFixed, Loader2, X } from 'lucide-react';
 import { TransportMode, PresetRoute } from '../types/navigation';
 import { PRESET_ROUTES } from '../data/presetRoutes';
-import { searchPlacesNominatim, GeocodedPlace } from '../services/osrmRoutingService';
+import { searchPlacesNominatim, GeocodedPlace } from '../services/osmServices';
 
 interface TopHeaderProps {
-  currentRoute: PresetRoute;
+  currentRoute: PresetRoute | null;
   onSelectRoute: (route: PresetRoute) => void;
   transportMode: TransportMode;
   onSelectTransportMode: (mode: TransportMode) => void;
@@ -14,6 +14,7 @@ interface TopHeaderProps {
   onUseLiveGps: () => void;
   isLiveGps: boolean;
   onSearchCustomDestination: (place: GeocodedPlace) => void;
+  onOpenMobilePlanner: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -26,13 +27,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onUseLiveGps,
   isLiveGps,
   onSearchCustomDestination,
+  onOpenMobilePlanner,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [geocodedResults, setGeocodedResults] = useState<GeocodedPlace[]>([]);
   const [isSearchingApi, setIsSearchingApi] = useState(false);
 
-  // Debounced search for Nominatim OpenStreetMap real geocoding
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length < 2) {
       setGeocodedResults([]);
@@ -49,68 +50,72 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const filteredPresetRoutes = PRESET_ROUTES.filter(
-    (r) =>
-      r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.destinationName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
-    <header className="h-12 lg:h-14 w-full bg-[#0A0D14]/95 border-b border-cyan-500/20 backdrop-blur-md px-2 sm:px-4 flex items-center justify-between gap-2 z-40 shrink-0">
+    <header className="h-14 w-full bg-[#0A0D14] border-b border-cyan-500/30 px-2 sm:px-4 flex items-center justify-between gap-2 z-50 shrink-0 relative">
       {/* Brand Zone */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center aura-glow-cyan shadow-lg">
-          <Navigation className="w-4 h-4 lg:w-5 lg:h-5 text-black font-bold transform -rotate-45" />
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center aura-glow-cyan shadow-lg">
+          <Navigation className="w-5 h-5 text-black font-bold transform -rotate-45" />
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-display font-extrabold text-base sm:text-xl tracking-wider text-white">
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-1.5">
+          <span className="font-display font-extrabold text-base sm:text-xl tracking-wider text-white leading-none">
             AURA<span className="text-aura-cyan">-NAVI</span>
           </span>
-          <span className="hidden md:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-medium bg-cyan-950/60 text-cyan-400 border border-cyan-500/30">
+          <span className="text-[9px] font-mono text-cyan-400 flex items-center gap-1">
             <Radio className="w-2.5 h-2.5 text-emerald-400 animate-pulse" />
-            LIVE GPS
+            FREE GPS
           </span>
         </div>
       </div>
 
-      {/* Central Search Bar & Geocoding Overlay */}
-      <div className="relative flex-1 max-w-sm lg:max-w-md mx-1">
+      {/* Central Search Input with Nominatim Geocoding */}
+      <div className="relative flex-1 max-w-sm sm:max-w-md mx-1">
         <div className="relative flex items-center">
-          <Search className="absolute left-2.5 w-3.5 h-3.5 text-slate-400" />
+          <Search className="absolute left-3 w-4 h-4 text-cyan-400" />
           <input
             type="text"
-            placeholder="Szukaj adresu w Polsce..."
+            placeholder="Wpisz dokąd chcesz jechać..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setIsSearchOpen(true);
             }}
             onFocus={() => setIsSearchOpen(true)}
-            className="w-full bg-[#121824] border border-slate-800 focus:border-cyan-500/60 rounded-xl pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+            className="w-full bg-[#121824] border border-cyan-500/40 focus:border-cyan-400 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 shadow-inner transition-all"
           />
-          {isSearchingApi && (
+          {searchQuery ? (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setGeocodedResults([]);
+              }}
+              className="absolute right-2.5 p-1 text-slate-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          ) : isSearchingApi ? (
             <Loader2 className="absolute right-2.5 w-3.5 h-3.5 text-cyan-400 animate-spin" />
-          )}
+          ) : null}
         </div>
 
         {/* Live Search Autocomplete Overlay */}
         {isSearchOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-[#121824] border border-cyan-500/40 rounded-xl shadow-2xl overflow-hidden z-50 divide-y divide-slate-800 max-h-72 overflow-y-auto">
-            <div className="px-3 py-1.5 text-[10px] font-mono text-slate-400 bg-slate-900/80 uppercase tracking-wider flex items-center justify-between">
-              <span>Wyniki Wyszukiwania OpenStreetMap</span>
+          <div className="absolute top-full left-0 right-0 mt-1 bg-[#121824] border border-cyan-500/50 rounded-2xl shadow-2xl overflow-hidden z-50 divide-y divide-slate-800 max-h-80 overflow-y-auto">
+            <div className="px-3 py-2 text-[10px] font-mono text-slate-400 bg-slate-900 uppercase tracking-wider flex items-center justify-between">
+              <span>Wpisz Miejscowość lub Wybierz z Listy</span>
               <button
                 onClick={() => setIsSearchOpen(false)}
-                className="text-slate-400 hover:text-white text-xs px-2 py-0.5"
+                className="text-cyan-400 font-bold text-xs px-2 py-0.5 rounded bg-cyan-950/60"
               >
                 Zamknij
               </button>
             </div>
 
-            {/* Real Geocoded Places from OpenStreetMap API */}
+            {/* Nominatim Search Results */}
             {geocodedResults.length > 0 && (
               <div className="p-1 space-y-1">
-                <div className="text-[9px] font-mono text-cyan-400 px-2 pt-1 uppercase">
-                  Rzeczywiste Miejsca (Geokodowanie)
+                <div className="text-[9px] font-mono text-cyan-400 px-2 pt-1 uppercase font-bold">
+                  Rzeczywiste Miejsca w OpenStreetMap
                 </div>
                 {geocodedResults.map((place) => (
                   <button
@@ -120,11 +125,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                       setIsSearchOpen(false);
                       setSearchQuery('');
                     }}
-                    className="w-full text-left px-2.5 py-2 hover:bg-cyan-950/60 rounded-lg transition-colors flex items-start gap-2"
+                    className="w-full text-left px-3 py-2.5 hover:bg-cyan-950/60 rounded-xl transition-colors flex items-start gap-2.5"
                   >
-                    <MapPin className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                    <MapPin className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-white truncate">
+                      <div className="text-xs font-bold text-white truncate">
                         {place.display_name.split(',')[0]}
                       </div>
                       <div className="text-[10px] text-slate-400 truncate">
@@ -136,12 +141,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               </div>
             )}
 
-            {/* Preset Default Routes */}
+            {/* Popular Places List */}
             <div className="p-1 space-y-1">
-              <div className="text-[9px] font-mono text-slate-500 px-2 pt-1 uppercase">
-                Gotowe Trasy
+              <div className="text-[9px] font-mono text-slate-400 px-2 pt-1 uppercase">
+                Przykładowe Trasy w Polsce
               </div>
-              {filteredPresetRoutes.map((route) => (
+              {PRESET_ROUTES.map((route) => (
                 <button
                   key={route.id}
                   onClick={() => {
@@ -149,10 +154,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     setIsSearchOpen(false);
                     setSearchQuery('');
                   }}
-                  className="w-full text-left px-2.5 py-2 hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-between gap-2"
+                  className="w-full text-left px-3 py-2 hover:bg-slate-800 rounded-xl transition-colors flex items-center justify-between gap-2"
                 >
                   <div className="truncate">
-                    <div className="text-xs font-semibold text-white truncate">{route.title}</div>
+                    <div className="text-xs font-bold text-white truncate">{route.title}</div>
                     <div className="text-[10px] text-slate-400 truncate">{route.destinationName}</div>
                   </div>
                   <span className="text-xs font-mono font-bold text-cyan-400 shrink-0">
@@ -165,20 +170,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         )}
       </div>
 
-      {/* Action Buttons & Mode Toggles */}
+      {/* Action Controls */}
       <div className="flex items-center gap-1.5 shrink-0">
         {/* Live GPS Button */}
         <button
           onClick={onUseLiveGps}
-          className={`min-h-[36px] px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+          className={`h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
             isLiveGps
               ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/30'
-              : 'bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-slate-300'
+              : 'bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-slate-200'
           }`}
           title="Użyj Żywej Lokalizacji GPS ze Smartfona"
         >
-          <LocateFixed className={`w-3.5 h-3.5 ${isLiveGps ? 'animate-spin text-black' : 'text-emerald-400'}`} />
-          <span className="hidden sm:inline">Mój GPS</span>
+          <LocateFixed className={`w-4 h-4 ${isLiveGps ? 'animate-spin text-black' : 'text-emerald-400'}`} />
+          <span className="hidden sm:inline">{isLiveGps ? 'GPS Aktywny' : 'Mój GPS'}</span>
         </button>
 
         {/* Transport Mode Toggles */}
@@ -212,17 +217,12 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </button>
         </div>
 
-        {/* Start Drive Simulation Button */}
+        {/* Mobile Details Drawer Button */}
         <button
-          onClick={onStartSimulation}
-          className={`min-h-[36px] px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-            isSimulating
-              ? 'bg-violet-600 text-white aura-glow-violet'
-              : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black aura-glow-cyan'
-          }`}
+          onClick={onOpenMobilePlanner}
+          className="lg:hidden h-9 px-2.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 font-bold text-xs flex items-center gap-1"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">{isSimulating ? 'Pauza' : 'Jedź'}</span>
+          <span>Trasa</span>
         </button>
       </div>
     </header>

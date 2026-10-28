@@ -1,0 +1,8 @@
+{
+  "name": "Aura-Navi GPS Navigation",
+  "description": "Zaawansowana nawigacja GPS z cyfrowym kokpitem HUD, interaktywną mapą, trasowaniem krok po kroku i symulatorem jazdy.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "summary":  "Zaktualizowano plan wdrożenia Aura-Navi o rygorystyczny układ CSS Grid/Flexbox zapobiegający nachodzeniu elementów UI (prędkościomierz, przyciski prawego rogu, panel ETA, manewry) oraz realistyczne dane drogowe bez fikcyjnych korków na trasach lokalnych.",
+  "updatedAt":  "2026-10-28T09:36:34.881356934Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

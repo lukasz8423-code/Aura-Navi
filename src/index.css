@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: #0A0D14;
+    color: #F1F5F9;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .font-mono, .tabular-nums {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Custom Aura Glow & Glassmorphism Utility Classes */
+.aura-glass {
+  background: rgba(18, 24, 36, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 242, 254, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.aura-glass-subtle {
+  background: rgba(15, 20, 30, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.aura-glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.4), inset 0 0 10px rgba(0, 242, 254, 0.2);
+}
+
+.aura-glow-violet {
+  box-shadow: 0 0 20px rgba(157, 78, 221, 0.4), inset 0 0 10px rgba(157, 78, 221, 0.2);
+}
+
+.text-aura-cyan {
+  color: #00F2FE;
+  text-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
+}
+
+.text-aura-violet {
+  color: #9D4EDD;
+  text-shadow: 0 0 12px rgba(157, 78, 221, 0.5);
+}
+
+/* Leaflet Dark Customizations */
+.leaflet-container {
+  background-color: #0A0D14 !important;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.leaflet-bar {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.leaflet-control-zoom {
+  display: none !important; /* We use custom HUD zoom buttons */
+}
+
+.leaflet-control-attribution {
+  background: rgba(10, 13, 20, 0.8) !important;
+  color: #64748B !important;
+  font-size: 10px !important;
+  border-top-left-radius: 6px;
+}
+
+.leaflet-control-attribution a {
+  color: #94A3B8 !important;
+}
+
+/* Custom Vehicle Pulse Animation */
+@keyframes vehicle-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 242, 254, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(0, 242, 254, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 242, 254, 0);
+  }
+}
+
+.vehicle-marker-pulse {
+  animation: vehicle-pulse 2s infinite;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 13, 20, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 254, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 254, 0.5);
+}

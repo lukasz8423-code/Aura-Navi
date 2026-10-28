@@ -16,7 +16,9 @@
   }
 }
 
-/* Leaflet Core CSS */
+/* ==========================================================================
+   Leaflet Core CSS (Self-Contained - 100% Free OpenStreetMap No API Key)
+   ========================================================================== */
 .leaflet-pane,
 .leaflet-tile,
 .leaflet-marker-icon,
@@ -46,9 +48,13 @@
           user-select: none;
     -webkit-user-drag: none;
 }
-.leaflet-tile::selection {
-  background: transparent;
+
+/* Dark HUD Filter for 100% Free OpenStreetMap Tiles (No API Keys Needed) */
+.dark-hud-tiles img.leaflet-tile {
+  filter: brightness(0.65) invert(1) contrast(2.2) hue-rotate(185deg) saturate(0.5);
+  mix-blend-mode: plus-lighter;
 }
+
 .leaflet-marker-icon,
 .leaflet-marker-shadow {
   display: block;
@@ -66,9 +72,6 @@
   max-height: none !important;
   width: auto;
   padding: 0;
-}
-.leaflet-container img.leaflet-tile {
-  mix-blend-mode: plus-lighter;
 }
 .leaflet-tile {
   filter: inherit;

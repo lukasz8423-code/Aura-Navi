@@ -43,6 +43,52 @@ export default function App() {
   const animFrameRef = useRef<number | null>(null);
   const watchGpsIdRef = useRef<number | null>(null);
 
+  // Auto-Detect Real User GPS Location on App Startup
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const liveUserCoords: LatLng = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+
+          // Fetch real OSRM route from user's current GPS position to destination
+          const osrmResult = await fetchOSRMRoute(
+            liveUserCoords,
+            currentRoute.destinationCoords,
+            transportMode
+          );
+
+          if (osrmResult) {
+            const gpsRoute: PresetRoute = {
+              ...currentRoute,
+              originName: 'Twoja Lokalizacja GPS',
+              originCoords: liveUserCoords,
+              distanceKm: osrmResult.distanceKm,
+              durationMin: osrmResult.durationMin,
+              path: osrmResult.path,
+              instructions: osrmResult.instructions,
+            };
+
+            setCurrentRoute(gpsRoute);
+            setSimulationState((prev) => ({
+              ...prev,
+              currentCoords: liveUserCoords,
+              isLiveGps: true,
+              distanceRemainingMeters: osrmResult.distanceKm * 1000,
+              timeRemainingSeconds: osrmResult.durationMin * 60,
+            }));
+          }
+        },
+        (err) => {
+          console.warn('Auto GPS location prompt skipped:', err);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, []);
+
   // Fetch AI Route Insight whenever route changes
   useEffect(() => {
     let isMounted = true;
@@ -94,15 +140,14 @@ export default function App() {
 
     const destName = place.display_name.split(',')[0] || place.display_name;
 
-    // Fetch real route from current location or preset origin to searched destination
     const osrmResult = await fetchOSRMRoute(simulationState.currentCoords, destCoords, transportMode);
 
     if (osrmResult) {
       const newCustomRoute: PresetRoute = {
         id: `custom-${Date.now()}`,
-        title: `Trasa do: ${destName}`,
+        title: `Trasa: ${destName}`,
         subtitle: place.display_name,
-        originName: 'Aktualna Pozycja',
+        originName: 'Aktualna Pozycja GPS',
         destinationName: place.display_name,
         originCoords: simulationState.currentCoords,
         destinationCoords: destCoords,
@@ -121,17 +166,15 @@ export default function App() {
     }
   };
 
-  // Live GPS Tracking Handler
+  // Live GPS Tracking Toggle
   const handleToggleLiveGps = () => {
     if (simulationState.isLiveGps) {
-      // Turn off live GPS
       if (watchGpsIdRef.current !== null) {
         navigator.geolocation.clearWatch(watchGpsIdRef.current);
         watchGpsIdRef.current = null;
       }
       setSimulationState((prev) => ({ ...prev, isLiveGps: false }));
     } else {
-      // Turn on live GPS tracking
       if (!('geolocation' in navigator)) {
         alert('Geolokalizacja GPS nie jest wspierana na Twoim urządzeniu');
         return;
@@ -164,15 +207,15 @@ export default function App() {
     }
   };
 
-  // Reset Simulation Helper
+  // Reset Simulation
   const resetSimulation = (route: PresetRoute) => {
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
     }
 
-    setSimulationState({
+    setSimulationState((prev) => ({
+      ...prev,
       isPlaying: false,
-      isLiveGps: false,
       speedMultiplier: 2,
       currentStepIndex: 0,
       progressPercent: 0,
@@ -181,7 +224,7 @@ export default function App() {
       distanceRemainingMeters: route.distanceKm * 1000,
       timeRemainingSeconds: route.durationMin * 60,
       currentCoords: route.path[0],
-    });
+    }));
   };
 
   function calculateHeading(from: LatLng, to: LatLng): number {
@@ -315,7 +358,7 @@ export default function App() {
 
       {/* ZONE 2: MAIN WORKSPACE CANVAS */}
       <main className="flex-1 w-full h-full flex overflow-hidden relative">
-        {/* ZONE 2A: LEFT DOCK PANEL (Desktop Sidebar / Mobile Sliding Sheet) */}
+        {/* ZONE 2A: LEFT DOCK PANEL */}
         <LeftDock
           currentRoute={currentRoute}
           onSelectRoute={(r) => {

@@ -16,6 +16,7 @@ interface MapViewProps {
   onToggle3dView: () => void;
   currentTurnInstruction: TurnInstruction | null;
   nextTurnInstruction: TurnInstruction | null;
+  liveSpeedLimit: number | null;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -27,6 +28,7 @@ export const MapView: React.FC<MapViewProps> = ({
   onToggle3dView,
   currentTurnInstruction,
   nextTurnInstruction,
+  liveSpeedLimit,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -37,7 +39,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const startMarkerRef = useRef<L.Marker | null>(null);
   const endMarkerRef = useRef<L.Marker | null>(null);
 
-  // Initialize Map with 100% Free OpenStreetMap Tiles (Zero API Key required)
+  // Initialize Map with OpenFreeMap & OpenStreetMap Tile Layers
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -64,16 +66,16 @@ export const MapView: React.FC<MapViewProps> = ({
         map.removeLayer(tileLayerRef.current);
       }
 
-      // 100% Free Public OpenStreetMap Tile Servers (No API keys or signup required)
-      let tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-      let attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+      // OpenFreeMap & OpenStreetMap 100% Free Public Tile Endpoints
+      let tileUrl = 'https://tile.openfreemap.org/liberty/{z}/{x}/{y}.png';
+      let attribution = '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
-      if (mapLayer === 'satellite') {
+      if (mapLayer === 'street') {
+        tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+        attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+      } else if (mapLayer === 'satellite') {
         tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
         attribution = 'Tiles &copy; Esri &mdash; World Imagery';
-      } else if (mapLayer === 'street') {
-        tileUrl = 'https://tile.openstreetmap.de/{z}/{x}/{y}.png';
-        attribution = '&copy; OpenStreetMap Deutschland';
       }
 
       const newTileLayer = L.tileLayer(tileUrl, {
@@ -219,7 +221,6 @@ export const MapView: React.FC<MapViewProps> = ({
         }
       }
 
-      // Smooth pan camera if navigating live or playing simulation
       if (isPlaying || isLiveGps) {
         map.panTo([currentCoords.lat, currentCoords.lng], { animate: true, duration: 0.3 });
       }
@@ -292,7 +293,7 @@ export const MapView: React.FC<MapViewProps> = ({
           <div className="pointer-events-auto">
             <SpeedometerHUD
               currentSpeedKmh={simulationState.currentSpeedKmh}
-              speedLimitKmh={currentRoute.speedLimitKmh}
+              speedLimitKmh={liveSpeedLimit || currentRoute.speedLimitKmh}
               headingDegrees={simulationState.headingDegrees}
               elevationMeters={currentRoute.elevationGainM}
             />

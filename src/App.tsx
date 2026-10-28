@@ -9,7 +9,12 @@ import {
   LatLng,
 } from './types/navigation';
 import { fetchGeminiRouteInsight } from './services/geminiService';
-import { fetchOSRMRoute, GeocodedPlace } from './services/osrmRoutingService';
+import {
+  fetchOSRMRoute,
+  searchPlacesNominatim,
+  fetchOverpassSpeedLimit,
+  GeocodedPlace,
+} from './services/osmServices';
 import { TopHeader } from './components/TopHeader';
 import { LeftDock } from './components/LeftDock';
 import { MapView } from './components/MapView';
@@ -21,6 +26,7 @@ export default function App() {
   const [mapLayer, setMapLayer] = useState<MapLayerStyle>('dark');
   const [is3dView, setIs3dView] = useState(false);
   const [isOpenMobile, setIsOpenMobile] = useState(false);
+  const [liveSpeedLimit, setLiveSpeedLimit] = useState<number | null>(null);
 
   // Gemini AI Route Insights State
   const [insight, setInsight] = useState<RouteInsight | null>(null);
@@ -88,6 +94,18 @@ export default function App() {
       );
     }
   }, []);
+
+  // Fetch Overpass API Speed Limit when current coords change in Live GPS mode
+  useEffect(() => {
+    if (!simulationState.isLiveGps) return;
+
+    const timer = setTimeout(async () => {
+      const speedLimit = await fetchOverpassSpeedLimit(simulationState.currentCoords);
+      if (speedLimit) setLiveSpeedLimit(speedLimit);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [simulationState.currentCoords, simulationState.isLiveGps]);
 
   // Fetch AI Route Insight whenever route changes
   useEffect(() => {
@@ -383,6 +401,7 @@ export default function App() {
             onToggle3dView={() => setIs3dView(!is3dView)}
             currentTurnInstruction={currentTurnInstruction}
             nextTurnInstruction={nextTurnInstruction}
+            liveSpeedLimit={liveSpeedLimit}
           />
         </div>
       </main>
